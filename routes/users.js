@@ -1,245 +1,297 @@
 const express = require('express')
 const users = express.Router()
-const md5 = require('blueimp-md5')
-const database = require('../util/db_databsae');
-const getToken = require('./token')
-const jwt = require("jsonwebtoken")
-const sendEmail = require('../util/emil')
-let code= ""
- /**
- * 发送邮件
- * @param {string} to 收件方邮箱
- * @param {Function} callback 回调函数（内置参数）
+const database = require('../util/db_databsae')
+const vertoken = require('../util/token')
+/**
+ * 用户登录
  *
  */
-users.post('/sendEmile' ,function (req, res) {
+users.post('/login', function (req, res) {
   let body = req.body
-  let to = body.email
-  let title = '图书馆管理'
-  while(code.length<5){
-    code+=Math.floor(Math.random()*10);
-  }
-  console.log(code);
-  sendEmail(req,res,to,code,title,callback)
-  function callback(err,data){
-    if(err){
-      res.status(500).json({
-        err_code: 500,
-        message: err.message
-      })
-    }else{
+  let sql = `select id,name,enable from user where name = '${body.name}' and password = '${body.password}'`
+  database(sql, success, error)
+  function success(data) {
+    if (data.length === 0) {
       res.status(200).json({
-        err_code: 0,
-        message: 'ok'
+        code: 2,
+        data: '用户名或者密码错误',
+      })
+    } else if (data[0].enable == 0) {
+      res.status(200).json({
+        code: 1,
+        data: '用户已被禁用',
+      })
+    } else {
+      vertoken.setToken(data[0].id).then((token) => {
+        data[0].token = token
+        res.status(200).json({
+          code: 0,
+          data: data[0],
+        })
       })
     }
   }
+  function error(err) {
+    res.status(500).json({
+      err_code: 500,
+      data: err.message,
+    })
+  }
 })
 /**
- * 注册接口
- * @param name
- * @param code
- * @param passowrd
- * @param email
- * @param nickname
- * err_code返回状态码
- * 0:注册成功
- * 1:用户已存在
- * 2:验证码错误
- * 500:报错
- * */
-users.post('/register', function (req, res) {
-  let body = req.body
-  let selectSql = `select name from user where name = '${body.name}' or nickname = '${body.nickname}'`
-  let num
-  if(body.code!=code){
-    res.status(200).json({
-      err_code: 2,
-      message: '验证码错误'
-    })
-  }else {
-    code = ''
-    function decide(result) {//判断注册的用户名是否在数据库中
-      num = result.length
-      if (num == 0) {
-        let pass = md5(md5(body.passowrd) + 'lcl')
-        let sql = `INSERT INTO user (name,password,email,nickname) VALUES ('${body.name}','${pass}','${body.email}','${body.nickname}') `
-        function insert(result) {
-          res.status(200).json({
-            err_code: 0,
-            message: 'ok'
-          })
+ *  获取用户菜单
+ */
+users.get('/role/:id/menu', function (req, res) {
+  let id = req.params.id
+  let sql1 = `select * from menu where id in (select menuid from maprole where roleid = (select roleId from user where id = ${id})) and type = 1`
+  let sql2 = `select * from menu where id in (select menuid from maprole where roleid = (select roleId from user where id = ${id})) and type = 2`
+  let sql3 = `select * from menu where id in (select menuid from maprole where roleid = (select roleId from user where id = ${id})) and type = 3`
+  database(sql1, first, error)
+  function first(data) {
+    let list = data
+    database(sql2, second, error)
+    function second(data) {
+      for (let x = 0; x < list.length; x++) {
+        list[x].children = []
+        for (let i = 0; i < data.length; i++) {
+          if (data[i].parentId === list[x].id) {
+            list[x].children.push(data[i])
+          }
         }
-        database(sql, insert, errCallback)
-      } else {
+      }
+      database(sql3, third, error)
+      function third(data) {
+        for (let x = 0; x < list.length; x++) {
+          for (let y = 0; y < list[x].children.length; y++) {
+            list[x].children[y].children = []
+            for (let i = 0; i < data.length; i++) {
+              if (list[x].children[y].id === data[i].parentId) {
+                list[x].children[y].children.push(data[i])
+              }
+            }
+          }
+        }
         res.status(200).json({
-          err_code: 1,
-          message: '用户名已存在'
+          code: 0,
+          data: list,
         })
       }
     }
-
-    function errCallback(err) {
-      res.status(500).json({
-        err_code: 500,
-        message: err.message
-      })
-    }
-
-    database(selectSql, decide, errCallback)
   }
-})
-/**
- * 登录接口
- * @param name
- * @param password
- * err_code返回状态码
- * 0:登录成功
- * 1:用户名密码错误
- * 500:报错
- *
- * */
-users.post('/login', function (req, res) {
-  let body = req.body
-  // let pass = md5(md5(body.passowrd) + 'lcl')
-  let sql = `select id,name,password,identity from user where name = '${body.name}' and password = '${body.password}'`
-  function success(data) {
-    if (data.length === 0) {
-      res.status(200).json({
-        err_code: 1,
-        message: '用户名或者密码错误'
-      })
-    }
-    if (data.length === 1) {
-      let user = `'${data[0].id}'`
-      let token = 'Bearer ' + jwt.sign({
-        user: user
-      }, "Lmw", {
-        expiresIn: 60 * 60 //过期时间，按照秒算
-      })
-      res.status(200).json({
-        err_code: 0,
-        message: 'ok',
-        token: token,
-        identity: data[0].identity,
-        userID: data[0].id
-      })
-    }
-  }
-
-  function err(err) {
+  function error(err) {
     res.status(500).json({
-      err_code: 500,
-      message: err.message
+      code: 500,
+      data: err.message,
     })
   }
-
-  database(sql, success, err)
 })
 
 /**
- * 管理员登录
- * @param name
- * @param password
+ * 获取用户信息
  *
- * */
-users.post('/adminLogin', function (req, res) {
-  let body = req.body
-  // let pass = md5(md5(body.passowrd) + 'lcl')
-  // let name = req.query.name
-  // let password = req.query.password
-  let name = body.name
-  let password = body.password
-  let sql = `select id,name,password,identity,nickname from user where name = '${name}' and password = '${password}'`
-  function success(data) {
-    if (data.length === 0) {
-      res.status(200).json({
-        err_code: 1,
-        message: '用户名或者密码错误'
-      })
-    }
-    if (data.length === 1 && (data[0].identity == 1 || data[0].identity == 2)) {
-      let user = `'${data[0].id}'`
-      let token = 'Bearer ' + jwt.sign({
-        user: user
-      }, "Lmw", {
-        expiresIn: 60 * 60 //过期时间，按照秒算
-      })
-      res.status(200).json({
-        err_code: 0,
-        message: 'ok',
-        token: token,
-        identity: data[0].identity,
-        userID: data[0].id,
-        nickname: data[0].nickname
-      })
+ */
+users.get('/users/:id', function (req, res) {
+  let id = req.params.id
+  let sql1 = `select id,name,realname,cellphone,enable,createAt,updateAt,roleId,departmentId from user where id = ${id}`
+  database(sql1, info, error)
+  function info(data) {
+    let list = data[0]
+    let sql2 = `SELECT * from role where id = ${data[0].roleId}`
+    let sql3 = `SELECT * from role where id = ${data[0].departmentId}`
+    database(sql2, role, error)
+    function role(data) {
+      list.role = data[0]
+      database(sql3, department, error)
+      function department(data) {
+        list.department = data[0]
+        res.status(200).json({
+          code: 0,
+          data: list,
+        })
+      }
     }
   }
-
-  function err(err) {
+  function error(err) {
     res.status(500).json({
-      err_code: 500,
-      message: err.message
+      code: 500,
+      data: err.message,
     })
   }
-
-  database(sql, success, err)
 })
 
 /**
- * 获取用户数量
- * 0:成功
- * 500:服务器错误
- * */
-users.get('/getUserNum', function (req,res) {
-  let sql = 'SELECT count(*) num from user where identity = 3 or identity=4'
-  database(sql,success,error)
+ * 创建用户
+ *
+ */
+users.post('/users', function (req, res) {
+  let body = req.body
+  let sql = `SELECT count(*) as count from user where name = '${body.name}'`
+  database(sql, success, error)
+  function success(data) {
+    if (data[0].count !== 0) {
+      res.status(200).json({
+        data: '用户已存在',
+      })
+    } else {
+      let date = new Date()
+      if (!body.password || body.password === '') {
+        body.password = 0
+      }
+      console.log(body.password)
+      let insertSql = `INSERT into user(name,password,cellphone,departmentId,roleId,realname,createAt,updateAt) VALUES ('${
+        body.name
+      }','${body.password}','${body.cellphone}',${body.departmentId},${
+        body.roleId
+      },'${body.realname}','${date.toISOString()}','${date.toISOString()}')`
+      database(insertSql, insertSuccess, error)
+      function insertSuccess(data) {
+        res.status(200).json({
+          code: 0,
+          data: '创建用户成功',
+        })
+      }
+    }
+  }
+
+  function error(err) {
+    res.status(500).json({
+      code: 400,
+      data: '创建用户失败',
+      err: err.message,
+    })
+  }
+})
+
+/**
+ * 获取用户列表
+ *
+ */
+users.post('/users/list', function (req, res) {
+  let body = req.body
+  let sql = `SELECT id,name,enable,cellphone,createAt,updateAt,departmentId,roleId,realname FROM user where 1 = 1`
+  if (body.name && body.name !== '') {
+    sql += ` and name like '%${body.name}%'`
+  }
+  if (body.enable !== undefined && body.enable !== '') {
+    sql += ` and enable = ${body.enable}`
+  }
+  if (body.cellphone && body.cellphone !== '') {
+    sql += ` and cellphone like '%${body.cellphone}%'`
+  }
+  if (body.departmentId && body.departmentId !== '') {
+    sql += ` and departmentId = ${body.departmentId}`
+  }
+  if (body.roleId && body.roleId !== '') {
+    sql += ` and roleId = ${body.roleId}`
+  }
+  if (body.realname && body.realname !== '') {
+    sql += ` and realname like '%${body.realname}%'`
+  }
+  if (body.createAt && body.createAt !== '') {
+    let begin = body.createAt[0]
+    let end = body.createAt[1]
+    sql += ` and createAt between '${begin}' and '${end}'`
+  }
+  if (!body.offset) {
+    body.offset = 0
+  }
+  if (!body.size) {
+    body.size = 10
+  }
+  sql += ` LIMIT ${body.offset},${body.size}`
+  database(sql, success, error)
+  function success(data) {
+    let list = data
+    let count = `SELECT count(*) as totalCount from user`
+    database(count, totalCount, error)
+    function totalCount(data) {
+      res.status(200).json({
+        code: 0,
+        data: { list, ...data[0] },
+      })
+    }
+  }
+
+  function error(err) {
+    res.status(500).json({
+      code: 400,
+      data: '查询用户失败',
+      err: err.message,
+    })
+  }
+})
+
+/**
+ * 删除用户
+ *
+ */
+users.delete('/users/:id', function (req, res) {
+  const id = req.params.id
+  let sql = `delete from user where id = '${id}'`
+  database(sql, success, error)
   function success(data) {
     res.status(200).json({
-      err_code: 0,
-      message: data
+      code: 0,
+      data: '删除用户成功',
     })
   }
-  function error(err){
+  function error(err) {
     res.status(500).json({
-      err_code: 500,
-      message: err.message
+      code: 400,
+      data: '删除失败',
+      err: err.message,
     })
   }
 })
-/*
-/验证token
 
+/**
+ * 修改用户
+ *
  */
-// users.get('/getAll', function (req, res) {
-//   // let token = req.query.token || req.body.token || req.headers.token;
-//   // let flag = getToken(req,res)
-//   // if(flag==false){ //一旦报错了，说明用户信息校验失败
-//   //   res.status(200).json({
-//   //     err_code: 1,
-//   //     message: 'token失效'
-//   //   })
-//   // }else{ //校验成功
-//   //   console.log('token存在');
-//   let sql = `select * from user`
-//   database(sql, success, error)
-//
-//   function success(data) {
-//     res.status(200).json({
-//       err_code: 0,
-//       message: data
-//     })
-//   }
-//
-//   function error(err) {
-//     res.status(500).json({
-//       err_code: 1,
-//       message: err.message
-//     })
-//   }
-//
-//   // }
-// })
-
+users.patch('/users/:id', function (req, res) {
+  const id = req.params.id
+  const body = req.body
+  let date = new Date()
+  let sql = `update user set updateAt = '${date.toISOString()}',`
+  if (body.name && body.name !== '') {
+    sql += ` name = '${body.name}',`
+  }
+  if (body.realname && body.realname !== '') {
+    sql += ` realname = '${body.realname}',`
+  }
+  if (body.enable !== '' && body.enable !== undefined) {
+    sql += ` enable = ${body.enable},`
+  }
+  if (body.cellphone && body.cellphone !== '') {
+    sql += ` cellphone = '${body.cellphone}',`
+  }
+  if (body.departmentId && body.departmentId !== '') {
+    sql += ` departmentId = ${body.departmentId},`
+  }
+  if (body.roleId && body.roleId !== '') {
+    sql += ` roleId = ${body.roleId},`
+  }
+  if (body.password && body.password !== '') {
+    sql += ` password = '${body.password}',`
+  }
+  sql += ` where id = ${id}`
+  let last = sql.lastIndexOf(',')
+  let totalSql = sql.substring(0, last)
+  totalSql += sql.substring(last + 1, sql.length)
+  database(totalSql, success, error)
+  function success(data) {
+    res.status(200).json({
+      code: 0,
+      data: '修改用户成功',
+    })
+  }
+  function error(err) {
+    res.status(500).json({
+      code: 400,
+      data: '修改失败',
+      err: err.message,
+    })
+  }
+})
 
 module.exports = users
