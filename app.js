@@ -49,7 +49,7 @@ app.use(
     secret: 'lmw',
     algorithms: ['HS256'],
   }).unless({
-    path: ['/login', '/echart/worker/top', '/echart/catary/top'], //不需要验证的接口名称
+    path: ['/login'], //不需要验证的接口名称
   })
 )
 //token失效返回信息
