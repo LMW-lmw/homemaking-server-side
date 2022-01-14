@@ -1,6 +1,8 @@
 const express = require('express')
 const menu = express.Router()
-const database = require('../util/db_databsae')
+const db = require('../util/db_databsae')
+const database = db.connect_database
+const promiseDb = db.promise_database
 /**
  * 菜单列表
  */

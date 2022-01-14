@@ -1,11 +1,13 @@
 const express = require('express')
 const category = express.Router()
-const database = require('../util/db_databsae')
+const db = require('../util/db_databsae')
+const database = db.connect_database
 category.post('/category/list', function (req, res) {
   let body = req.body
   let sql = `SELECT * from category where 1 = 1`
+  let sql2 = ``
   if (body.name && body.name !== '') {
-    sql += ` and name like '%${body.name}%'`
+    sql2 += ` and name like '%${body.name}%'`
   }
   if (!body.offset) {
     body.offset = 0
@@ -13,11 +15,13 @@ category.post('/category/list', function (req, res) {
   if (!body.size) {
     body.size = 10
   }
+  sql += sql2
   sql += ` LIMIT ${body.offset},${body.size}`
   database(sql, success, error)
   function success(data) {
     let list = data
-    let count = `SELECT count(*) as totalCount from category`
+    let count = `SELECT count(*) as totalCount from category where 1=1`
+    count += sql2
     database(count, totalCount, error)
     function totalCount(data) {
       res.status(200).json({
@@ -36,11 +40,12 @@ category.post('/category/list', function (req, res) {
   }
 })
 category.patch('/category/:id', function (req, res) {
-  console.log(222)
   const id = req.params.id
   const body = req.body
   let date = new Date()
-  let sql = `update category set updateAt = '${date.toISOString()}', name = '${body.name}' where id = ${id}`
+  let sql = `update category set updateAt = '${date.toISOString()}', name = '${
+    body.name
+  }' where id = ${id}`
   database(sql, success, error)
   function success(data) {
     res.status(200).json({
@@ -62,14 +67,14 @@ category.post('/category', function (req, res) {
   let date = new Date()
   let sql = `select count(*) as count from category where name = '${name}'`
   database(sql, flag, error)
-  function flag (data) {
+  function flag(data) {
     if (data[0].count !== 0) {
       res.status(200).json({
         data: '行业已存在',
       })
     } else {
       let addSql = `INSERT into category(name,createAt,updateAt) VALUES ('${name}','${date.toISOString()}','${date.toISOString()}')`
-      console.log(addSql)
+
       database(addSql, success, error)
       function success(data) {
         res.status(200).json({

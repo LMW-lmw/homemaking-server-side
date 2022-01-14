@@ -1,6 +1,8 @@
 const express = require('express')
 const echarts = express.Router()
-const database = require('../util/db_databsae')
+const db = require('../util/db_databsae')
+const database = db.connect_database
+const promiseDb = db.promise_database
 echarts.get('/echart/worker/top', function (req, res) {
   let sql = `SELECT id,name,count  from workers ORDER BY count desc LIMIT 0,10`
   database(sql, success, error)

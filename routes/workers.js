@@ -1,6 +1,12 @@
 const express = require('express')
 const workers = express.Router()
-const database = require('../util/db_databsae')
+const db = require('../util/db_databsae')
+const database = db.connect_database
+const promiseDb = db.promise_database
+
+/**
+ * 查询家政人员
+ */
 workers.post('/worker/list', function (req, res) {
   let body = req.body
   let sql = `select w.id,
@@ -11,7 +17,7 @@ workers.post('/worker/list', function (req, res) {
   w.city as cityid,
   w.area as areaid,
   w.province as provinceid,
-  w.type as type,
+  ca.name as type,
   w.telephone,
   w.remuneration,
   w.count,
@@ -23,47 +29,59 @@ workers.post('/worker/list', function (req, res) {
   areas as a,
   category as ca
    where p.provinceid = w.province and c.cityid = w.city and a.areaid = w.area and w.type = ca.id`
-  if (!body.offset) {
-    body.offset = 0
-  }
-  if (!body.size) {
-    body.size = 10
-  }
-  if (body.name && body.name !== '') {
-    sql += ` and w.name like '%${body.name}%'`
-  }
-  // if (body.type && body.type !== '') {
-  //   sql += ` and w.name like '%${body.name}%'`
-  // }
-  if (body.telephone && body.telephone !== '') {
-    sql += ` and telephone like '%${body.telephone}%'`
-  }
-  sql += ` ORDER BY w.id LIMIT ${body.offset},${body.size}`
-  database(sql, success, error)
-  function success(data) {
-    let list = data
-    let count = `SELECT count(*) as totalCount from workers`
-    database(count, totalCount, error)
-    function totalCount(data) {
-      res.status(200).json({
-        code: 0,
-        data: { list, ...data[0] },
+  let sql2 = ``
+  async function selectWorkers() {
+    if (!body.offset) {
+      body.offset = 0
+    }
+    if (!body.size) {
+      body.size = 10
+    }
+    if (body.name && body.name !== '') {
+      sql2 += ` and w.name like '%${body.name}%'`
+    }
+    if (body.telephone && body.telephone !== '') {
+      sql2 += ` and w.telephone like '%${body.telephone}%'`
+    }
+    if (body.type && body.type !== '') {
+      let selectCategoryId = `select id from category where name = "${body.type}"`
+      let info = await promiseDb(selectCategoryId)
+      let type = info[0].id
+      sql2 += ` and w.type = ${type}`
+    }
+    sql += sql2
+    sql += ` ORDER BY w.id LIMIT ${body.offset},${body.size}`
+    database(sql, success, error)
+    function success(data) {
+      let list = data
+      let count = `SELECT count(*) as totalCount from workers w where 1=1`
+      count += sql2
+      database(count, totalCount, error)
+      function totalCount(data) {
+        res.status(200).json({
+          code: 0,
+          data: { list, ...data[0] },
+        })
+      }
+    }
+
+    function error(err) {
+      res.status(500).json({
+        code: 400,
+        data: '查询失败',
+        err: err.message,
       })
     }
   }
-
-  function error(err) {
-    res.status(500).json({
-      code: 400,
-      data: '查询失败',
-      err: err.message,
-    })
-  }
+  selectWorkers()
 })
+
+/**
+ * 添加家政人员
+ */
 workers.post('/worker', function (req, res) {
   let body = req.body
   let date = new Date()
-  console.log(body)
   for (let key in body) {
     if (!body[key] || body[key] == '') {
       res.status(500).json({
@@ -74,32 +92,42 @@ workers.post('/worker', function (req, res) {
       return
     }
   }
-  let sql = `INSERT into workers(name,province,city,area,type,telephone,remuneration,count,createAt,updateAt) VALUES 
+  async function addWorker() {
+    let selectTypeId = `select id from category where name = "${body.type}"`
+    let info = await promiseDb(selectTypeId)
+    let type = info[0].id
+    let sql = `INSERT into workers(name,province,city,area,type,telephone,remuneration,count,createAt,updateAt) VALUES 
   ('${body.name}',
   '${body.province}',
   '${body.city}',
   '${body.area}',
-  '${body.type}',
+  ${type},
   '${body.telephone}',
   '${body.remuneration}', 
   0 ,
   '${date.toISOString()}',
   '${date.toISOString()}')`
-  database(sql, success, error)
-  function success(data) {
-    res.status(200).json({
-      code: 0,
-      data: '添加成功',
-    })
+
+    database(sql, success, error)
+    function success() {
+      res.status(200).json({
+        code: 0,
+        data: '添加成功',
+      })
+    }
+    function error(err) {
+      res.status(500).json({
+        code: 400,
+        data: '创建用户失败',
+        err: err.message,
+      })
+    }
   }
-  function error(err) {
-    res.status(500).json({
-      code: 400,
-      data: '创建用户失败',
-      err: err.message,
-    })
-  }
+  addWorker()
 })
+/**
+ * 修改家政人员信息
+ */
 workers.patch('/worker/:id', function (req, res) {
   const id = req.params.id
   const body = req.body
@@ -144,9 +172,11 @@ workers.patch('/worker/:id', function (req, res) {
       err: err.message,
     })
   }
-  // console.log(totalSql)
-  // console.log(id,body)
 })
+
+/**
+ * 删除家政人员信息
+ */
 workers.delete('/worker/:id', function (req, res) {
   const id = req.params.id
   let sql = `delete from workers where id = '${id}'`

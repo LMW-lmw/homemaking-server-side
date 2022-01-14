@@ -12,6 +12,7 @@ const menu = require('./routes/menu')
 const category = require('./routes/category')
 const workers = require('./routes/workers')
 const echarts = require('./routes/echart')
+
 // 配置token
 const vertoken = require('./util/token')
 const expressJwt = require('express-jwt')
@@ -74,6 +75,7 @@ app.use(menu)
 app.use(category)
 app.use(workers)
 app.use(echarts)
+
 app.use((err, req, res, next) => {
   res.status(502).json({
     err_code: 502,

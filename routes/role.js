@@ -1,6 +1,8 @@
 const express = require('express')
 const role = express.Router()
-const database = require('../util/db_databsae')
+const db = require('../util/db_databsae')
+const database = db.connect_database
+const promiseDb = db.promise_database
 /**
  * 所有角色列表
  */
