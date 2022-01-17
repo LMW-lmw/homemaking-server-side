@@ -14,7 +14,7 @@ department.post('/department/list', function (req, res) {
     sql += ` and name like '%${body.name}%'`
   }
   if (body.leader && body.leader !== '') {
-    sql += ` and enable like '%${body.leader}%'`
+    sql += ` and leader like '%${body.leader}%'`
   }
   if (body.createAt && body.createAt !== '') {
     let begin = body.createAt[0]

@@ -133,45 +133,51 @@ workers.patch('/worker/:id', function (req, res) {
   const body = req.body
   let date = new Date()
   let sql = `update workers set updateAt = '${date.toISOString()}',`
-  if (body.name && body.name !== '') {
-    sql += ` name = '${body.name}',`
+  async function editWorker() {
+    if (body.name && body.name !== '') {
+      sql += ` name = '${body.name}',`
+    }
+    if (body.type && body.type !== '') {
+      let selectTypeId = `select id from category where name = '${body.type}'`
+      const info = await promiseDb(selectTypeId)
+      const typeid = info[0].id
+      sql += ` type = ${typeid},`
+    }
+    if (body.telephone && body.telephone !== '') {
+      sql += ` telephone = '${body.telephone}',`
+    }
+    if (body.remuneration && body.remuneration !== '') {
+      sql += ` remuneration = '${body.remuneration}',`
+    }
+    if (body.province && body.province !== '') {
+      sql += ` province = '${body.province}',`
+    }
+    if (body.city && body.city !== '') {
+      sql += ` city = '${body.city}',`
+    }
+    if (body.area && body.area !== '') {
+      sql += ` area = '${body.area}',`
+    }
+    sql += ` where id = ${id}`
+    let last = sql.lastIndexOf(',')
+    let totalSql = sql.substring(0, last)
+    totalSql += sql.substring(last + 1, sql.length)
+    database(totalSql, success, error)
+    function success(data) {
+      res.status(200).json({
+        code: 0,
+        data: '修改成功',
+      })
+    }
+    function error(err) {
+      res.status(500).json({
+        code: 400,
+        data: '修改失败',
+        err: err.message,
+      })
+    }
   }
-  if (body.type && body.type !== '') {
-    sql += ` type = '${body.type}',`
-  }
-  if (body.telephone && body.telephone !== '') {
-    sql += ` telephone = '${body.telephone}',`
-  }
-  if (body.remuneration && body.remuneration !== '') {
-    sql += ` remuneration = '${body.remuneration}',`
-  }
-  if (body.province && body.province !== '') {
-    sql += ` province = '${body.province}',`
-  }
-  if (body.city && body.city !== '') {
-    sql += ` city = '${body.city}',`
-  }
-  if (body.area && body.area !== '') {
-    sql += ` area = '${body.area}',`
-  }
-  sql += ` where id = ${id}`
-  let last = sql.lastIndexOf(',')
-  let totalSql = sql.substring(0, last)
-  totalSql += sql.substring(last + 1, sql.length)
-  database(totalSql, success, error)
-  function success(data) {
-    res.status(200).json({
-      code: 0,
-      data: '修改成功',
-    })
-  }
-  function error(err) {
-    res.status(500).json({
-      code: 400,
-      data: '修改失败',
-      err: err.message,
-    })
-  }
+  editWorker()
 })
 
 /**
