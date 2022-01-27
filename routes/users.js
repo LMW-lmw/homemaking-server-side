@@ -10,6 +10,7 @@ const vertoken = require('../util/token')
  */
 users.post('/login', function (req, res) {
   let body = req.body
+  console.log(req.ip)
   let sql = `select id,name,enable from user where name = '${body.name}' and password = '${body.password}'`
   database(sql, success, error)
   function success(data) {
@@ -172,11 +173,102 @@ users.post('/users', function (req, res) {
  * 获取用户列表
  *
  */
+// users.post('/users/list', function (req, res) {
+//   let body = req.body
+//   let sql = `SELECT u.id,u.name as name,enable,cellphone,u.createAt,u.updateAt,d.name as department,r.name as role,realname FROM user u,role r, department d where r.id = u.roleId and u.departmentId = d.id`
+//   let sql2 = ``
+//   async function selectUsers() {
+//     if (body.name && body.name !== '') {
+//       sql2 += ` and u.name like '%${body.name}%'`
+//     }
+//     if (body.enable !== undefined && body.enable !== '') {
+//       switch (body.enable) {
+//         case '全部':
+//           break
+//         case '禁用':
+//           sql2 += ` and u.enable = 0`
+//           break
+//         case '启用':
+//           sql2 += ` and u.enable = 1`
+//           break
+//       }
+//     }
+//     if (body.cellphone && body.cellphone !== '') {
+//       sql2 += ` and u.cellphone like '%${body.cellphone}%'`
+//     }
+//     if (body.department && body.department !== '') {
+//       let selectDepartmentId = `SELECT d.id as departmentId from department d where d.name = "${body.department}" `
+//       let info = await promiseDb(selectDepartmentId)
+//       let departmentId = info[0].departmentId
+//       sql2 += ` and u.departmentId = ${departmentId}`
+//     }
+//     if (body.role && body.role !== '') {
+//       let selectRoleId = `SELECT r.id as roleId from role r where r.name = "${body.role}" `
+//       let info = await promiseDb(selectRoleId)
+//       let roleId = info[0].roleId
+
+//       sql2 += ` and u.roleId = ${roleId}`
+//     }
+
+//     if (body.realname && body.realname !== '') {
+//       sql2 += ` and u.realname like '%${body.realname}%'`
+//     }
+//     if (body.createAt && body.createAt !== '') {
+//       let begin = body.createAt[0]
+//       let end = body.createAt[1]
+//       sql2 += ` and createAt between '${begin}' and '${end}'`
+//     }
+//     if (!body.offset) {
+//       body.offset = 0
+//     }
+//     if (!body.size) {
+//       body.size = 10
+//     }
+//     sql += sql2
+//     sql += ` ORDER BY u.id LIMIT ${body.offset},${body.size}`
+//     let sql3 = `SELECT count(*) as totalCount from user u where 1=1`
+//     sql3 += sql2
+//     database(sql, success, error)
+//     function success(data) {
+//       let list = data
+//       // let count = `SELECT count(*) as totalCount from user`
+//       database(sql3, totalCount, error)
+//       function totalCount(data) {
+//         res.status(200).json({
+//           code: 0,
+//           data: { list, ...data[0] },
+//         })
+//       }
+//     }
+
+//     function error(err) {
+//       res.status(500).json({
+//         code: 400,
+//         data: '查询用户失败',
+//         err: err.message,
+//       })
+//     }
+//   }
+//   selectUsers()
+// })
+
 users.post('/users/list', function (req, res) {
   let body = req.body
-  let sql = `SELECT u.id,u.name as name,enable,cellphone,u.createAt,u.updateAt,d.name as department,r.name as role,realname FROM user u,role r, department d where r.id = u.roleId and u.departmentId = d.id`
+  let sql = `SELECT id, name, enable, cellphone, createAt, updateAt, departmentId as department, roleId as role, realname from user u where 1=1`
   let sql2 = ``
   async function selectUsers() {
+    let departmentInfoSql = `select * from department`
+    let roleInfoSql = `select * from role`
+    departmentInfo = await promiseDb(departmentInfoSql)
+    roleInfo = await promiseDb(roleInfoSql)
+    let departmentMap = new Map()
+    let roleMap = new Map()
+    departmentInfo.forEach((item) => {
+      departmentMap.set(item.id, item.name)
+    })
+    roleInfo.forEach((item) => {
+      roleMap.set(item.id, item.name)
+    })
     if (body.name && body.name !== '') {
       sql2 += ` and u.name like '%${body.name}%'`
     }
@@ -227,17 +319,22 @@ users.post('/users/list', function (req, res) {
     sql += ` ORDER BY u.id LIMIT ${body.offset},${body.size}`
     let sql3 = `SELECT count(*) as totalCount from user u where 1=1`
     sql3 += sql2
-    database(sql, success, error)
-    function success(data) {
-      let list = data
-      // let count = `SELECT count(*) as totalCount from user`
-      database(sql3, totalCount, error)
-      function totalCount(data) {
-        res.status(200).json({
-          code: 0,
-          data: { list, ...data[0] },
-        })
+    let list = await promiseDb(sql)
+    list.forEach((element) => {
+      if (element.department) {
+        element.department = departmentMap.get(element.department)
       }
+      if (element.role) {
+        element.role = roleMap.get(element.role)
+      }
+    })
+    database(sql3, success, error)
+
+    function success(data) {
+      res.status(200).json({
+        code: 0,
+        data: { list, ...data[0] },
+      })
     }
 
     function error(err) {
@@ -298,15 +395,30 @@ users.patch('/users/:id', function (req, res) {
     }
     if (body.department && body.department !== '') {
       let selectDepartmentId = `SELECT d.id as departmentId from department d where d.name = "${body.department}" `
-      let info = await promiseDb(selectDepartmentId)
-      let departmentId = info[0].departmentId
-      sql += ` departmentId = ${departmentId},`
+      try {
+        let info = await promiseDb(selectDepartmentId)
+        let departmentId = info[0].departmentId
+        sql += ` departmentId = ${departmentId},`
+      } catch (error) {
+        console.log(error)
+        return res.status(400).json({
+          code: 400,
+          data: '该部门不存在，请刷新重试',
+        })
+      }
     }
     if (body.role && body.role !== '') {
       let selectRoleId = `SELECT r.id as roleId from role r where r.name = "${body.role}" `
-      let info = await promiseDb(selectRoleId)
-      let roleId = info[0].roleId
-      sql += ` roleId = ${roleId},`
+      try {
+        let info = await promiseDb(selectRoleId)
+        let roleId = info[0].roleId
+        sql += ` roleId = ${roleId},`
+      } catch (error) {
+        return res.status(400).json({
+          code: 400,
+          data: '该角色不存在，请刷新重试',
+        })
+      }
     }
     if (body.password && body.password !== '') {
       sql += ` password = '${body.password}',`
