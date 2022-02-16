@@ -3,6 +3,9 @@ const echarts = express.Router()
 const db = require('../util/db_databsae')
 const database = db.connect_database
 const promiseDb = db.promise_database
+/**
+ * 获取优秀员工
+ */
 echarts.get('/echart/worker/top', function (req, res) {
   let sql = `SELECT id,name,count  from workers ORDER BY count desc LIMIT 0,10`
   database(sql, success, error)
@@ -19,6 +22,9 @@ echarts.get('/echart/worker/top', function (req, res) {
     })
   }
 })
+/**
+ * 获取热门行业
+ */
 echarts.get('/echart/catary/top', function (req, res) {
   let sql = `SELECT c.id,c.name, count(*) as count from workers w JOIN category c ON w.type=c.id GROUP BY c.id`
   database(sql, success, error)

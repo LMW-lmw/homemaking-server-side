@@ -251,7 +251,9 @@ users.post('/users', function (req, res) {
 //   }
 //   selectUsers()
 // })
-
+/**
+ * 获取用户列表
+ */
 users.post('/users/list', function (req, res) {
   let body = req.body
   let sql = `SELECT id, name, enable, cellphone, createAt, updateAt, departmentId as department, roleId as role, realname from user u where 1=1`

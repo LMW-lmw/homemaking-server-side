@@ -2,6 +2,9 @@ const express = require('express')
 const category = express.Router()
 const db = require('../util/db_databsae')
 const database = db.connect_database
+/**
+ * 查询行业分类
+ */
 category.post('/category/list', function (req, res) {
   let body = req.body
   let sql = `SELECT * from category where 1 = 1`
@@ -39,6 +42,9 @@ category.post('/category/list', function (req, res) {
     })
   }
 })
+/**
+ * 修改行业分类
+ */
 category.patch('/category/:id', function (req, res) {
   const id = req.params.id
   const body = req.body
@@ -61,6 +67,9 @@ category.patch('/category/:id', function (req, res) {
     })
   }
 })
+/**
+ * 创建行业分类
+ */
 category.post('/category', function (req, res) {
   const body = req.body
   const name = body.name
@@ -92,6 +101,9 @@ category.post('/category', function (req, res) {
     })
   }
 })
+/**
+ * 删除行业分类
+ */
 category.delete('/category/:id', function (req, res) {
   const id = req.params.id
   let sql = `delete from category where id = '${id}'`
