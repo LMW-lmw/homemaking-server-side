@@ -4,13 +4,17 @@ const db = require('../util/db_databsae')
 const database = db.connect_database
 const promiseDb = db.promise_database
 const vertoken = require('../util/token')
+const dateFormat = require('../util/dateFormat')
 /**
  * 用户登录
  *
  */
 users.post('/login', function (req, res) {
   let body = req.body
-  console.log(req.ip)
+  console.log(body)
+  let date = new Date()
+  const messages = dateFormat(date)
+  console.log('时间：', messages, 'ip地址：', req.ip)
   let sql = `select id,name,enable from user where name = '${body.name}' and password = '${body.password}'`
   database(sql, success, error)
   function success(data) {
