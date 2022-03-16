@@ -175,88 +175,6 @@ users.post('/users', function (req, res) {
 
 /**
  * 获取用户列表
- *
- */
-// users.post('/users/list', function (req, res) {
-//   let body = req.body
-//   let sql = `SELECT u.id,u.name as name,enable,cellphone,u.createAt,u.updateAt,d.name as department,r.name as role,realname FROM user u,role r, department d where r.id = u.roleId and u.departmentId = d.id`
-//   let sql2 = ``
-//   async function selectUsers() {
-//     if (body.name && body.name !== '') {
-//       sql2 += ` and u.name like '%${body.name}%'`
-//     }
-//     if (body.enable !== undefined && body.enable !== '') {
-//       switch (body.enable) {
-//         case '全部':
-//           break
-//         case '禁用':
-//           sql2 += ` and u.enable = 0`
-//           break
-//         case '启用':
-//           sql2 += ` and u.enable = 1`
-//           break
-//       }
-//     }
-//     if (body.cellphone && body.cellphone !== '') {
-//       sql2 += ` and u.cellphone like '%${body.cellphone}%'`
-//     }
-//     if (body.department && body.department !== '') {
-//       let selectDepartmentId = `SELECT d.id as departmentId from department d where d.name = "${body.department}" `
-//       let info = await promiseDb(selectDepartmentId)
-//       let departmentId = info[0].departmentId
-//       sql2 += ` and u.departmentId = ${departmentId}`
-//     }
-//     if (body.role && body.role !== '') {
-//       let selectRoleId = `SELECT r.id as roleId from role r where r.name = "${body.role}" `
-//       let info = await promiseDb(selectRoleId)
-//       let roleId = info[0].roleId
-
-//       sql2 += ` and u.roleId = ${roleId}`
-//     }
-
-//     if (body.realname && body.realname !== '') {
-//       sql2 += ` and u.realname like '%${body.realname}%'`
-//     }
-//     if (body.createAt && body.createAt !== '') {
-//       let begin = body.createAt[0]
-//       let end = body.createAt[1]
-//       sql2 += ` and createAt between '${begin}' and '${end}'`
-//     }
-//     if (!body.offset) {
-//       body.offset = 0
-//     }
-//     if (!body.size) {
-//       body.size = 10
-//     }
-//     sql += sql2
-//     sql += ` ORDER BY u.id LIMIT ${body.offset},${body.size}`
-//     let sql3 = `SELECT count(*) as totalCount from user u where 1=1`
-//     sql3 += sql2
-//     database(sql, success, error)
-//     function success(data) {
-//       let list = data
-//       // let count = `SELECT count(*) as totalCount from user`
-//       database(sql3, totalCount, error)
-//       function totalCount(data) {
-//         res.status(200).json({
-//           code: 0,
-//           data: { list, ...data[0] },
-//         })
-//       }
-//     }
-
-//     function error(err) {
-//       res.status(500).json({
-//         code: 400,
-//         data: '查询用户失败',
-//         err: err.message,
-//       })
-//     }
-//   }
-//   selectUsers()
-// })
-/**
- * 获取用户列表
  */
 users.post('/users/list', function (req, res) {
   let body = req.body
@@ -450,46 +368,6 @@ users.patch('/users/:id', function (req, res) {
     }
   }
   add()
-  // if (body.name && body.name !== '') {
-  //   sql += ` name = '${body.name}',`
-  // }
-  // if (body.realname && body.realname !== '') {
-  //   sql += ` realname = '${body.realname}',`
-  // }
-  // if (body.enable !== '' && body.enable !== undefined) {
-  //   sql += ` enable = ${body.enable},`
-  // }
-  // if (body.cellphone && body.cellphone !== '') {
-  //   sql += ` cellphone = '${body.cellphone}',`
-  // }
-  // if (body.department && body.department !== '') {
-  //   sql += ` departmentId = departmentId`
-  // }
-  // if (body.role && body.role !== '') {
-  //   sql += ` roleId = ${roleId},`
-  // }
-  // if (body.password && body.password !== '') {
-  //   sql += ` password = '${body.password}',`
-  // }
-  // sql += ` where id = ${id}`
-  // let last = sql.lastIndexOf(',')
-  // let totalSql = sql.substring(0, last)
-  // totalSql += sql.substring(last + 1, sql.length)
-  // console.log(totalSql)
-  // database(totalSql, success, error)
-  // function success(data) {
-  //   res.status(200).json({
-  //     code: 0,
-  //     data: '修改用户成功',
-  //   })
-  // }
-  // function error(err) {
-  //   res.status(500).json({
-  //     code: 400,
-  //     data: '修改失败',
-  //     err: err.message,
-  //   })
-  // }
 })
 
 module.exports = users
