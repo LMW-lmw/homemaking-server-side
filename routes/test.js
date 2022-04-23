@@ -5,7 +5,6 @@ const database = db.connect_database
 
 test.post('/citys', function (req, res) {
   let body = req.body
-  console.log(body)
   let sql = ''
   if (body.city) {
     sql = `SELECT city from cities where city like '%${body.city}%'`
