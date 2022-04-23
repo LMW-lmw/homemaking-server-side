@@ -48,5 +48,4 @@ function connect_database(sql, callback, errCallback) {
     }
   })
 }
-
 module.exports = { promise_database, connect_database }

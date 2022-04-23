@@ -13,6 +13,8 @@ const category = require('./routes/category')
 const workers = require('./routes/workers')
 const echarts = require('./routes/echart')
 
+const test = require('./routes/test')
+
 // 配置token
 const vertoken = require('./util/token')
 const expressJwt = require('express-jwt')
@@ -50,7 +52,7 @@ app.use(
     secret: 'lmw',
     algorithms: ['HS256'],
   }).unless({
-    path: ['/login', '/worker/list'], //不需要验证的接口名称
+    path: ['/login', '/citys'], //不需要验证的接口名称
   })
 )
 //token失效返回信息
@@ -75,6 +77,7 @@ app.use(menu)
 app.use(category)
 app.use(workers)
 app.use(echarts)
+app.use(test)
 
 app.use((err, req, res, next) => {
   res.status(502).json({
@@ -83,6 +86,6 @@ app.use((err, req, res, next) => {
   })
 })
 
-app.listen(3000, function () {
-  console.log('服务器启动，端口号3000')
+app.listen(3002, function () {
+  console.log('服务器启动，端口号3002')
 })
